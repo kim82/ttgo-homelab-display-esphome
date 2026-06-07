@@ -1,2 +1,28 @@
 # ttgo-homelab-display-esphome
-ESPHome configuration for TTGO T-Display (ST7789V) showing server hostnames, IPs, disk usage and CPU temps.
+ESPHome configuration for the TTGO T-Display (ESP32 + ST7789V 135×240px) showing server hostnames, IPs, disk usage and CPU temps — updated via HTTP POST from bash scripts running on each server.
+
+## Hardware
+- LILYGO TTGO T-Display ESP32
+
+## Features
+- Support for 2 server
+- 3 display states, cycled with the onboard buttons
+  - **State 0** — Server overview: hostname, IP, disk usage per mount point
+  - **State 1** — Device info: ESPHome hostname, own IP, WiFi RSSI, uptime
+  - **State 2** — CPU temperatures for both servers
+- Disk entries support color alerts — `YELLOW` and `RED` when usage is high
+- All server data is pushed via HTTP POST from bash scripts on each server
+- Values persist across reboots and power outages (`restore_value: true`)
+- Fully internal entities — nothing exposed to Home Assistant
+- Button to cycle screens
+
+## Server Setup
+### 4. Install the bash scripts on each server
+```bash
+# On Debian
+chmod +x update-display.sh
+
+# Add to cron — runs every 30 minutes
+crontab -e
+# add: */30 * * * * /path/to/update-display.sh
+```
