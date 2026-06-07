@@ -1,0 +1,312 @@
+esphome:
+  name: homelab-display
+  friendly_name: homelab_display
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+
+api:
+  encryption:
+    key: "!! CREATE A NEW !!"
+
+ota:
+  - platform: esphome
+    password: "!! CREATE A NEW !!"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Homelab-Display Fallback Hotspot"
+    password: "!! CREATE A NEW !!"
+
+captive_portal:
+
+web_server:
+  port: 80
+
+spi:
+  clk_pin: GPIO18
+  mosi_pin: GPIO19
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO0
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    name: "Button 1"
+    on_click:
+      then:
+        - lambda: id(display_state) = (id(display_state) + 2) % 3;
+
+  - platform: gpio
+    pin:
+      number: GPIO35
+      inverted: true
+      mode:
+        input: true
+    name: "Button 2"
+    on_click:
+      then:
+        - lambda: id(display_state) = (id(display_state) + 1) % 3;
+
+globals:
+  - id: display_state
+    type: int
+    restore_value: yes
+    initial_value: '0'
+
+text:
+  - platform: template
+    internal: true
+    id: server1_hostname
+    optimistic: true
+    min_length: 0
+    max_length: 32
+    mode: text
+    restore_value: true
+
+  - platform: template
+    internal: true
+    id: server1_ip
+    optimistic: true
+    min_length: 0
+    max_length: 15
+    mode: text
+    restore_value: true
+
+  - platform: template
+    internal: true
+    id: server1_disk1
+    optimistic: true
+    min_length: 0
+    max_length: 32
+    mode: text
+    restore_value: true
+
+  - platform: template
+    internal: true
+    id: server1_disk2
+    optimistic: true
+    min_length: 0
+    max_length: 32
+    mode: text
+    restore_value: true
+
+  - platform: template
+    internal: true
+    id: server1_disk3
+    optimistic: true
+    min_length: 0
+    max_length: 32
+    mode: text
+    restore_value: true
+
+  - platform: template
+    internal: true
+    id: server2_hostname
+    optimistic: true
+    min_length: 0
+    max_length: 32
+    mode: text
+    restore_value: true
+
+  - platform: template
+    internal: true
+    id: server2_ip
+    optimistic: true
+    min_length: 0
+    max_length: 15
+    mode: text
+    restore_value: true
+
+  - platform: template
+    internal: true
+    id: server2_disk1
+    optimistic: true
+    min_length: 0
+    max_length: 32
+    mode: text
+    restore_value: true
+
+  - platform: template
+    internal: true
+    id: server2_disk2
+    optimistic: true
+    min_length: 0
+    max_length: 32
+    mode: text
+    restore_value: true
+
+  - platform: template
+    internal: true
+    id: server2_disk3
+    optimistic: true
+    min_length: 0
+    max_length: 32
+    mode: text
+    restore_value: true
+
+  - platform: template
+    internal: true
+    id: server1_cpu_temp
+    optimistic: true
+    min_length: 0
+    max_length: 16
+    mode: text
+    restore_value: true
+
+  - platform: template
+    internal: true
+    id: server2_cpu_temp
+    optimistic: true
+    min_length: 0
+    max_length: 16
+    mode: text
+    restore_value: true
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi RSSI"
+    id: wifi_rssi
+    update_interval: 10s
+
+  - platform: uptime
+    name: "Uptime"
+    id: uptime_sensor
+    update_interval: 10s
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      id: wifi_ip
+
+font:
+  - file: "ttgo/fonts/Roboto-Medium.ttf"
+    id: font_medium
+    size: 16
+  - file: "ttgo/fonts/Roboto-Regular.ttf"
+    id: font_small
+    size: 14
+
+display:
+  - platform: st7789v
+    model: TTGO TDisplay 135x240
+    backlight_pin: GPIO4
+    cs_pin: GPIO5
+    dc_pin: GPIO16
+    reset_pin: GPIO23
+    rotation: 90
+    update_interval: 1s
+    lambda: |-
+      it.fill(Color(0, 0, 0));
+
+      if (id(display_state) == 0) {
+        // --- State 0: Server info ---
+
+        auto print_disk = [&](int y, std::string entry) {
+          if (entry.empty()) return;
+          auto sep1 = entry.find(':');
+          if (sep1 == std::string::npos) return;
+          auto sep2 = entry.find(':', sep1 + 1);
+
+          std::string label = entry.substr(0, sep1);
+          std::string size  = (sep2 == std::string::npos) ? entry.substr(sep1 + 1) : entry.substr(sep1 + 1, sep2 - sep1 - 1);
+          std::string flag  = (sep2 == std::string::npos) ? "" : entry.substr(sep2 + 1);
+
+          it.print(20,  y, id(font_small), Color(120, 120, 120), label.c_str());
+
+          if (flag == "RED")
+            it.print(220, y, id(font_medium), Color(220, 60, 60), TextAlign::TOP_RIGHT, size.c_str());
+          else if (flag == "YELLOW")
+            it.print(220, y, id(font_medium), Color(220, 200, 60), TextAlign::TOP_RIGHT, size.c_str());
+          else
+            it.print(220, y, id(font_small), Color(160, 160, 160), TextAlign::TOP_RIGHT, size.c_str());
+        };
+
+        int y = 0;
+
+        // Server 1
+        std::string h1  = id(server1_hostname).state;
+        std::string ip1 = id(server1_ip).state;
+        std::string header1 = (h1.empty() ? "server1" : h1) + "   " + (ip1.empty() ? "-" : ip1);
+        it.print(0, y, id(font_medium), Color(100, 220, 100), header1.c_str()); y += 18;
+        print_disk(y, id(server1_disk1).state); y += 16;
+        print_disk(y, id(server1_disk2).state); y += 16;
+        print_disk(y, id(server1_disk3).state); y += 18;
+
+        it.line(0, y, 240, y, Color(40, 40, 40)); y += 4;
+
+        // Server 2
+        std::string h2  = id(server2_hostname).state;
+        std::string ip2 = id(server2_ip).state;
+        std::string header2 = (h2.empty() ? "server2" : h2) + "   " + (ip2.empty() ? "-" : ip2);
+        it.print(0, y, id(font_medium), Color(100, 220, 100), header2.c_str()); y += 18;
+        print_disk(y, id(server2_disk1).state); y += 16;
+        print_disk(y, id(server2_disk2).state); y += 16;
+        print_disk(y, id(server2_disk3).state);
+
+      } else if (id(display_state) == 1) {
+        // --- State 1: Device info ---
+        it.print(0, 10, id(font_medium), Color(100, 220, 100), "Device Info");
+        it.line(0, 30, 240, 30, Color(40, 40, 40));
+
+        it.print(0, 36, id(font_medium), Color(160, 160, 160), App.get_name().c_str());
+
+        std::string ownIp = "IP:     " + id(wifi_ip).state;
+        it.print(0, 54, id(font_medium), Color(160, 160, 160), ownIp.c_str());
+
+        it.printf(0, 72, id(font_medium), Color(160, 160, 160), "RSSI:   %d dBm", (int)id(wifi_rssi).state);
+
+        int uptime_s = (int)id(uptime_sensor).state;
+        int d = uptime_s / 86400;
+        int h = (uptime_s % 86400) / 3600;
+        int m = (uptime_s % 3600) / 60;
+        int s = uptime_s % 60;
+        if (d > 0)
+          it.printf(0, 90, id(font_medium), Color(160, 160, 160), "Uptime: %dd %02dh %02dm", d, h, m);
+        else
+          it.printf(0, 90, id(font_medium), Color(160, 160, 160), "Uptime: %02dh %02dm %02ds", h, m, s);
+
+      } else if (id(display_state) == 2) {
+        // --- State 2: CPU Temps ---
+
+        auto parse_temp = [&](std::string entry, int x, int y) {
+          if (entry.empty()) {
+            it.print(x, y, id(font_medium), Color(160, 160, 160), TextAlign::TOP_RIGHT, "-");
+            return;
+          }
+          auto sep = entry.find(':');
+          std::string val  = (sep == std::string::npos) ? entry : entry.substr(0, sep);
+          std::string flag = (sep == std::string::npos) ? "" : entry.substr(sep + 1);
+          Color col = Color(160, 160, 160);
+          if (flag == "RED")    col = Color(220, 60, 60);
+          if (flag == "YELLOW") col = Color(220, 200, 60);
+          it.print(x, y, id(font_medium), col, TextAlign::TOP_RIGHT, val.c_str());
+        };
+
+        it.print(0, 10, id(font_medium), Color(100, 220, 100), "CPU Temps");
+        it.line(0, 30, 240, 30, Color(40, 40, 40));
+
+        // Server 1
+        std::string h1 = id(server1_hostname).state;
+        std::string t1 = id(server1_cpu_temp).state;
+        it.print(0, 46, id(font_medium), Color(160, 160, 160), (h1.empty() ? "server1" : h1).c_str());
+        parse_temp(t1, 220, 46);
+
+        it.line(0, 70, 240, 70, Color(40, 40, 40));
+
+        // Server 2
+        std::string h2 = id(server2_hostname).state;
+        std::string t2 = id(server2_cpu_temp).state;
+        it.print(0, 86, id(font_medium), Color(160, 160, 160), (h2.empty() ? "server2" : h2).c_str());
+        parse_temp(t2, 220, 86);
+      }
