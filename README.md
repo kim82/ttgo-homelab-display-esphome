@@ -26,3 +26,5 @@ chmod +x update-display.sh
 crontab -e
 # add: */30 * * * * /path/to/update-display.sh
 ```
+
+Change the values in the bash script for your needs :)
