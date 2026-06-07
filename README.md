@@ -16,8 +16,11 @@ ESPHome configuration for the TTGO T-Display (ESP32 + ST7789V 135×240px) showin
 - Fully internal entities — nothing exposed to Home Assistant
 - Button to cycle screens
 
-## Server Setup
-### 4. Install the bash scripts on each server
+## Setup
+### ESPHome
+See https://esphome.io/ for how to upload yaml to your esp32.
+
+### Server - Install the bash scripts on each server
 ```bash
 # On Debian
 chmod +x update-display.sh
